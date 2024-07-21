@@ -90,10 +90,19 @@ class Vacancy:
         self.name: str = name
         self.alternate_url: str = alternate_url
         self.salary_from: int = salary_from
-        self.salary_to: int = salary_to
+        self.salary_to: int = self.check_salary(salary_to)
         self.area_name: str = area_name
         self.requirement: str = requirement
         self.responsibility: str = responsibility
+    @staticmethod
+    def check_salary(salary_to):
+        if salary_to == 0:
+            return "..."
+        else:
+            return salary_to
+
+
+
 
     def __str__(self) -> str:
         """ Строковое представление вакансии """
