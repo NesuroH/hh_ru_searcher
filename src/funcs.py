@@ -4,77 +4,33 @@ from abc import ABC, abstractmethod
 
 
 class Parser(ABC):
-    def __init__(self, file_worker):
-        self.file_worker = file_worker
-
     @abstractmethod
-    def load_vacancies(self, keyword):
+    def get_response(self, keyword, per_page):
         pass
 
-
+    @abstractmethod
+    def get_vacancies(self, keyword, per_page):
+        pass
 class HH(Parser):
     """
     Класс для работы с API HeadHunter
     Класс Parser является родительским классом, который вам необходимо реализовать
     """
 
-    def __init__(self, file_worker):
-        self.url = 'https://api.hh.ru/vacancies'
-        self.headers = {'User-Agent': 'HH-User-Agent'}
-        self.params = {'text': '', 'page': 0, 'per_page': 100}
-        self.vacancies = []
-        super().__init__(file_worker)
+    def __init__(self):
+        self.url = "https://api.hh.ru/vacancies"
+        self.headers = {"User-Agent": "HH-User-Agent"}
+        self.params = {"text": "", "per_page": "", "only_with_salary": True}
 
-    def load_vacancies(self, keyword):
-        self.params['text'] = keyword
-        while self.params.get('page') != 20:
-            response = requests.get(self.url, headers=self.headers, params=self.params)
-            vacancies = response.json()['items']
-            self.vacancies.extend(vacancies)
-            self.params['page'] += 1
-        return self.vacancies
+    def get_response(self, keyword, per_page) -> requests.Response:
+        self.params["text"] = keyword
+        self.params["per_page"] = per_page
+        return requests.get(self.url, params=self.params)
+
+    def get_vacancies(self, keyword: str, per_page: int):
+        return self.get_response(keyword, per_page).json()["items"]
 
 
-class Vacations:
-    def __init__(self, name, url, salary, description):
-        self.name = name
-        self.url = url
-        self.description = description
-        self.salary = self.validate_salary(salary)
-
-    @staticmethod
-    def validate_salary(salary):
-        if not isinstance(salary, (int, float)) or salary <= 0:
-            return "Зарплата не указана"
-        return salary
-
-    def __eq__(self, other):
-        if isinstance(other, Vacations):
-            return self.salary == other.salary
-        return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __lt__(self, other):
-        if isinstance(other, Vacations):
-            return self.salary < other.salary
-        return NotImplemented
-
-    def __le__(self, other):
-        if isinstance(other, Vacations):
-            return self.salary <= other.salary
-        return NotImplemented
-
-    def __gt__(self, other):
-        if isinstance(other, Vacations):
-            return self.salary > other.salary
-        return NotImplemented
-
-    def __ge__(self, other):
-        if isinstance(other, Vacations):
-            return self.salary >= other.salary
-        return NotImplemented
 
 
 class Saver(ABC):
@@ -82,7 +38,7 @@ class Saver(ABC):
         self.filename = filename
 
     @abstractmethod
-    def write_data(self, data):
+    def write_data(self, vacancies):
         pass
 
     @abstractmethod
@@ -90,97 +46,95 @@ class Saver(ABC):
         pass
 
     @abstractmethod
-    def del_data(self, key):
+    def del_data(self):
         pass
-
 
 class SaverJSON(Saver):
     def __init__(self, filename):
+        """ Конструктор класса """
+
         super().__init__(filename)
 
     def write_data(self, vacancies):
+        """ Запись данных в json """
+
         data = self.get_data()
-        if not isinstance(data, list):
-            data = []
         data.extend(vacancies)
-        with open(self.filename, 'w', encoding="utf-8") as file:
+
+        with open(self.filename, "w", encoding="utf-8") as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
 
     def get_data(self):
+        """ Получение данных json """
+
         try:
-            with open(self.filename, 'r', encoding="utf-8") as file:
-                return json.load(file)
+            return json.load(open(self.filename))
         except FileNotFoundError:
             return []
 
-    def del_data(self, key):
-        data = self.get_data()
-        # Assuming each item in data is a dictionary and key is a unique identifier
-        new_data = [item for item in data if item.get('id') != key]
-        if len(new_data) != len(data):
-            self.save_data(new_data)
-            print(f"Key '{key}' has been deleted.")
-        else:
-            print(f"Key '{key}' not found in the JSON file.")
+    def del_data(self):
+        """ Удаление данных из файла """
 
-    def save_data(self, data):
-        with open(self.filename, 'w', encoding="utf-8") as file:
-            json.dump(data, file, indent=4)
-
-    def cast_to_object_list(self, data):
-        # Assuming you want to convert dictionaries to some object instances
-        # This is a placeholder implementation
-        return [self.dict_to_object(item) for item in data]
-
-    def dict_to_object(self, dict_item):
-        # Placeholder for converting a dictionary to an object
-        # You need to define how to convert a dictionary to your specific object
-        return dict_item  # Replace with actual conversion logic
+        with open(self.filename, "w", encoding="utf-8") as file:
+            json.dump([], file, ensure_ascii=False, indent=4)
 
 
-class VacancyManager:
-    @staticmethod
-    def search_vacancy(user_search, vacancies):
-        filtered = {}
-        for vacancy in vacancies:
-            if user_search in vacancy["name"]:
-                filtered += vacancy
+class Vacancy:
+    """ Класс для работы с вакансиями """
 
-        return filtered
+    __slots__ = ("name", "alternate_url", "salary_from", "salary_to", "area_name", "requirement", "responsibility")
 
+    def __init__(self, name, alternate_url, salary_from, salary_to, area_name, requirement, responsibility):
+        """ Конструктор класса """
 
+        self.name: str = name
+        self.alternate_url: str = alternate_url
+        self.salary_from: int = salary_from
+        self.salary_to: int = salary_to
+        self.area_name: str = area_name
+        self.requirement: str = requirement
+        self.responsibility: str = responsibility
 
-    @staticmethod
-    def filter_vacancies(vacancies, filter_words):
-        filtered = []
-        for vacancy in vacancies:
-            if any(word in vacancy['requirement'] for word in filter_words):
-                filtered.append(vacancy)
-        return filtered
+    def __str__(self) -> str:
+        """ Строковое представление вакансии """
 
-    @staticmethod
-    def get_vacancies_by_salary(vacancies, salary_range):
-        min_salary, max_salary = map(int, salary_range.split(' - '))
-        ranged_vacancies = []
-        for vacancy in vacancies:
-            salary_min, salary_max = vacancy['salary']['from'], vacancy['salary']['to']
-            if salary_min and salary_min <= min_salary <= max_salary <= max_salary:
-                ranged_vacancies.append(vacancy)
-        return ranged_vacancies
+        return (f"Наименование вакансии: {self.name}\n"
+                f"Ссылка на вакансию: {self.alternate_url}\n"
+                f"Зарплата: от {self.salary_from} до {self.salary_to}\n"
+                f"Место работы: {self.area_name}\n"
+                f"Краткое описание: {self.requirement}\n"
+                f"{self.responsibility}\n")
 
-    @staticmethod
-    def sort_vacancies(vacancies):
-        return sorted(vacancies, key=lambda x: x['salary'], reverse=True)
+    def __lt__(self, other) -> bool:
+        """ Метод сравнения от большего к меньшему """
 
-    @staticmethod
-    def get_top_vacancies(vacancies, top_n):
-        return vacancies[:top_n]
+        return self.salary_from < other.salary_from
 
-    @staticmethod
-    def print_vacancies(vacancies):
-        for vacancy in vacancies:
-            print(f"Name: {vacancy['name']}, Salary: {vacancy['salary']}, URL: {vacancy['url']}")
+    @classmethod
+    def from_hh_dict(cls, vacancy_data: dict):
+        """ Метод возвращает экземпляр класса в виде списка """
 
+        salary = vacancy_data.get("salary")
 
-# Main code
+        return cls(
+            vacancy_data["name"],
+            vacancy_data["alternate_url"],
+            salary.get("from") if salary.get("from") else 0,
+            salary.get("to") if salary.get("to") else 0,
+            vacancy_data["area"]["name"],
+            vacancy_data["snippet"]["requirement"],
+            vacancy_data["snippet"]["responsibility"],
+        )
 
+    def to_dict(self) -> dict:
+        """ Метод возвращает вакансию в виде словаря """
+
+        return {
+            "name": self.name,
+            "alternate_url": self.alternate_url,
+            "salary_from": self.salary_from,
+            "salary_to": self.salary_to,
+            "area_name": self.area_name,
+            "requirement": self.requirement,
+            "responsibility": self.responsibility,
+        }
