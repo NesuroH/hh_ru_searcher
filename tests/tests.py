@@ -1,8 +1,8 @@
-import pytest
-import json
+from src.HH_API_CONNECTOR import HH
+from src.SaverJSON import SaverJSON
+from src.Vacancy import Vacancy
 from unittest.mock import patch, MagicMock
-from src.funcs import HH, SaverJSON, Vacancy
-
+import pytest, json
 # Test data
 vacancy_data = {
     "name": "Software Engineer",
@@ -21,7 +21,7 @@ def test_hh_get_response():
     hh = HH()
     with patch('requests.get') as mock_get:
         mock_get.return_value = MagicMock(status_code=200, json=lambda: {"items": [vacancy_data]})
-        response = hh.get_response("Python", 1)
+        response = hh._HH__get_response("Python", 1)
         assert response.status_code == 200
         assert response.json() == {"items": [vacancy_data]}
 

@@ -1,4 +1,7 @@
-from src.funcs import HH, SaverJSON, Vacancy
+from src.HH_API_CONNECTOR import HH
+from src.SaverJSON import SaverJSON
+from src.Vacancy import Vacancy
+
 
 def main():
     user_choice = input("Что вы хотите сделать?\n"
