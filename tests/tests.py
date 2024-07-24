@@ -1,7 +1,8 @@
-import pytest
-import json
+from src.HH_API_CONNECTOR import HH
+from src.SaverJSON import SaverJSON
+from src.Vacancy import Vacancy
 from unittest.mock import patch, MagicMock
-from src.funcs import HH, SaverJSON, Vacancy
+import pytest, json
 
 # Test data
 vacancy_data = {
@@ -12,18 +13,21 @@ vacancy_data = {
     "snippet": {"requirement": "Python", "responsibility": "Develop software"}
 }
 
+
 @pytest.fixture
 def vacancy_instance():
     return Vacancy.from_hh_dict(vacancy_data)
+
 
 # Test HH class
 def test_hh_get_response():
     hh = HH()
     with patch('requests.get') as mock_get:
         mock_get.return_value = MagicMock(status_code=200, json=lambda: {"items": [vacancy_data]})
-        response = hh.get_response("Python", 1)
+        response = hh._HH__get_response("Python", 1)
         assert response.status_code == 200
         assert response.json() == {"items": [vacancy_data]}
+
 
 def test_hh_get_vacancies():
     hh = HH()
@@ -33,10 +37,12 @@ def test_hh_get_vacancies():
         assert len(vacancies) == 1
         assert vacancies[0]["name"] == "Software Engineer"
 
+
 # Test SaverJSON class
 @pytest.fixture
 def temp_file(tmp_path):
     return tmp_path / "vacancies.json"
+
 
 def test_saverjson_write_data(temp_file, vacancy_instance):
     saver = SaverJSON(temp_file)
@@ -46,6 +52,7 @@ def test_saverjson_write_data(temp_file, vacancy_instance):
         assert len(data) == 1
         assert data[0]["name"] == "Software Engineer"
 
+
 def test_saverjson_get_data(temp_file, vacancy_instance):
     saver = SaverJSON(temp_file)
     saver.write_data([vacancy_instance.to_dict()])
@@ -53,12 +60,14 @@ def test_saverjson_get_data(temp_file, vacancy_instance):
     assert len(data) == 1
     assert data[0]["name"] == "Software Engineer"
 
+
 def test_saverjson_del_data(temp_file, vacancy_instance):
     saver = SaverJSON(temp_file)
     saver.write_data([vacancy_instance.to_dict()])
     saver.del_data()
     data = saver.get_data()
     assert data == []
+
 
 # Test Vacancy class
 def test_vacancy_str(vacancy_instance):
@@ -72,16 +81,19 @@ def test_vacancy_str(vacancy_instance):
     )
     assert str(vacancy_instance) == expected_str
 
+
 def test_vacancy_lt():
     vacancy1 = Vacancy("Job1", "url1", 1000, 2000, "City1", "Req1", "Resp1")
     vacancy2 = Vacancy("Job2", "url2", 2000, 3000, "City2", "Req2", "Resp2")
     assert vacancy1 < vacancy2
+
 
 def test_vacancy_from_hh_dict():
     vacancy = Vacancy.from_hh_dict(vacancy_data)
     assert vacancy.name == "Software Engineer"
     assert vacancy.salary_from == 1000
     assert vacancy.salary_to == 2000
+
 
 def test_vacancy_to_dict(vacancy_instance):
     vacancy_dict = vacancy_instance.to_dict()
