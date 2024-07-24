@@ -13,15 +13,13 @@ class Vacancy:
         self.area_name: str = area_name
         self.requirement: str = requirement
         self.responsibility: str = responsibility
+
     @staticmethod
     def check_salary(salary_to):
         if salary_to == 0:
             return "..."
         else:
             return salary_to
-
-
-
 
     def __str__(self) -> str:
         """ Строковое представление вакансии """

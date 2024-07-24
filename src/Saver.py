@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Saver(ABC):
     def __init__(self, filename):
         self.__filename = filename
